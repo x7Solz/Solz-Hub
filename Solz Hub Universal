@@ -1,0 +1,694 @@
+-- Load WindUI
+local WindUI = loadstring(game:HttpGet("https://raw.githubusercontent.com/Footagesus/WindUI/main/dist/main.lua"))()
+
+-- Create a main window
+local Window = WindUI:CreateWindow({
+    Title = "Souless Hub",
+    Icon = "geist:window",
+    Author = "made by solz",
+    Folder = "SoulessHub",
+    Size = UDim2.fromOffset(580, 490),
+    Theme = "Dark",
+    Acrylic = true
+})
+
+-- Setup topbar tags (optional)
+Window:Tag({
+    Title = "v1.0.0",
+    Color = Color3.fromHex("#30ff6a")
+})
+Window:Tag({
+    Title = "Beta",
+    Color = Color3.fromHex("#315dff")
+})
+
+
+-- ========== MAIN TAB ==========
+local MainTab = Window:Tab({
+    Title = "Main",
+    Icon = "home",
+    Opened = true
+})
+
+-- ================= SOLZ HUB DISCORD ==================
+local discordSection = MainTab:Section({
+    Title = "Solz Hub Discord",
+    Icon = "link"
+})
+
+discordSection:Button({
+    Title = "Copy Solz Hub Discord Link",
+    Callback = function()
+        setclipboard("https://discord.gg/HJduS8Wqup")
+    end
+})
+
+-- ================= MODS GROUP ==================
+local modsSection = MainTab:Section({
+    Title = "Player Mods",
+    Icon = "settings"
+})
+
+local noclipEnabled, spinEnabled, infJumpEnabled, flyEnabled = false, false, false, false
+local flyingLoop = nil
+local flySpeed = 50 -- default fly speed
+
+modsSection:Toggle({
+    Title = "Noclip",
+    Value = false,
+    Callback = function(state) noclipEnabled = state end
+})
+
+modsSection:Toggle({
+    Title = "Spin",
+    Value = false,
+    Callback = function(state) spinEnabled = state end
+})
+
+modsSection:Toggle({
+    Title = "Infinite Jump",
+    Value = false,
+    Callback = function(state) infJumpEnabled = state end
+})
+
+modsSection:Toggle({
+    Title = "Fly",
+    Value = false,
+    Callback = function(state)
+        flyEnabled = state
+
+        local player = game.Players.LocalPlayer
+        local char = player.Character
+        if not char then return end
+        local hrp = char:FindFirstChild("HumanoidRootPart")
+        if not hrp then return end
+
+        local UserInputService = game:GetService("UserInputService")
+
+        if flyEnabled then
+            -- Fly setup
+            local bg = Instance.new("BodyGyro", hrp)
+            bg.P = 9e4
+            bg.maxTorque = Vector3.new(9e9, 9e9, 9e9)
+            bg.cframe = hrp.CFrame
+
+            local bv = Instance.new("BodyVelocity", hrp)
+            bv.velocity = Vector3.new(0, 0.1, 0)
+            bv.maxForce = Vector3.new(9e9, 9e9, 9e9)
+
+            flyingLoop = game:GetService("RunService").RenderStepped:Connect(function()
+                if not flyEnabled or not char or not char.Parent then return end
+                local camCF = workspace.CurrentCamera.CFrame
+                local move = Vector3.new()
+
+                -- PC controls
+                if UserInputService:IsKeyDown(Enum.KeyCode.W) then
+                    move = move + camCF.LookVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.S) then
+                    move = move - camCF.LookVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.A) then
+                    move = move - camCF.RightVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.D) then
+                    move = move + camCF.RightVector
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.Space) then
+                    move = move + Vector3.new(0,1,0)
+                end
+                if UserInputService:IsKeyDown(Enum.KeyCode.LeftControl) then
+                    move = move - Vector3.new(0,1,0)
+                end
+
+                -- Mobile joystick support
+                local hum = char:FindFirstChildOfClass("Humanoid")
+                if hum and hum.MoveDirection.Magnitude > 0 then
+                    local joyMove = camCF:VectorToWorldSpace(Vector3.new(hum.MoveDirection.X,0,hum.MoveDirection.Z))
+                    move = move + joyMove
+                end
+
+                if move.Magnitude > 0 then
+                    move = move.Unit * flySpeed
+                end
+
+                bv.velocity = move
+                bg.cframe = camCF
+            end)
+
+        else
+            -- Disable fly
+            if flyingLoop then
+                flyingLoop:Disconnect()
+                flyingLoop = nil
+            end
+
+            if hrp then
+                for _, v in pairs(hrp:GetChildren()) do
+                    if v:IsA("BodyGyro") or v:IsA("BodyVelocity") then
+                        v:Destroy()
+                    end
+                end
+            end
+        end
+    end
+})
+
+modsSection:Slider({
+    Title = "Fly Speed",
+    Value = { Min = 10, Max = 200, Default = 50 },
+    Callback = function(value)
+        flySpeed = value
+    end
+})
+
+-- ================= BACKGROUND LOOPS ==================
+game:GetService("RunService").Stepped:Connect(function()
+    local player = game.Players.LocalPlayer
+    local char = player.Character
+    if not char then return end
+
+    -- Noclip
+    if noclipEnabled then
+        for _, part in pairs(char:GetDescendants()) do
+            if part:IsA("BasePart") and part.CanCollide then
+                part.CanCollide = false
+            end
+        end
+    end
+
+    -- Spin
+    if spinEnabled and char:FindFirstChild("HumanoidRootPart") then
+        char.HumanoidRootPart.CFrame = char.HumanoidRootPart.CFrame * CFrame.Angles(0, math.rad(25), 0)
+    end
+end)
+
+-- Infinite Jump
+game:GetService("UserInputService").JumpRequest:Connect(function()
+    if infJumpEnabled then
+        local humanoid = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then humanoid:ChangeState("Jumping") end
+    end
+end)
+
+-- ========== MAIN TAB ==========
+local MainTab = Window:Tab({
+    Title = "Player Modifications",
+    Icon = "zap",
+    Opened = true
+})
+
+-- ================= SPEED GROUP ==================
+local speedSection = MainTab:Section({
+    Title = "WalkSpeed Settings",
+    Icon = "zap"
+})
+
+local speedEnabled = false
+local selectedSpeed = 16
+
+speedSection:Toggle({
+    Title = "Enable Custom Speed",
+    Value = false,
+    Callback = function(state)
+        speedEnabled = state
+        local humanoid = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.WalkSpeed = state and selectedSpeed or 16
+        end
+    end
+})
+
+speedSection:Slider({
+    Title = "WalkSpeed",
+    Value = { Min = 16, Max = 250, Default = 16 },
+    Callback = function(value)
+        selectedSpeed = value
+        local humanoid = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid and speedEnabled then
+            humanoid.WalkSpeed = value
+        end
+    end
+})
+
+-- ================= JUMP GROUP ==================
+local jumpSection = MainTab:Section({
+    Title = "JumpPower Settings",
+    Icon = "arrow-up"
+})
+
+local jumpEnabled = false
+local selectedJump = 50
+
+jumpSection:Toggle({
+    Title = "Enable Custom JumpPower",
+    Value = false,
+    Callback = function(state)
+        jumpEnabled = state
+        local humanoid = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid then
+            humanoid.UseJumpPower = true
+            humanoid.JumpPower = state and selectedJump or 50
+        end
+    end
+})
+
+jumpSection:Slider({
+    Title = "JumpPower",
+    Value = { Min = 50, Max = 250, Default = 50 },
+    Callback = function(value)
+        selectedJump = value
+        local humanoid = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+        if humanoid and jumpEnabled then
+            humanoid.UseJumpPower = true
+            humanoid.JumpPower = value
+        end
+    end
+})
+
+
+-- ========== TELEPORT SERVICE TAB ==========
+local TeleportTab = Window:Tab({
+    Title = "Teleport Service",
+    Icon = "map"
+})
+
+-- ================= TP WALK ==================
+local tpWalkSection = TeleportTab:Section({
+    Title = "TP Walk",
+    Icon = "zap"
+})
+
+local tpWalkEnabled = false
+local tpWalkSpeed = 50
+local tpWalkConn
+
+tpWalkSection:Toggle({
+    Title = "Enable TP Walk",
+    Value = false,
+    Callback = function(state)
+        tpWalkEnabled = state
+        if tpWalkConn then tpWalkConn:Disconnect() end
+
+        if state then
+            tpWalkConn = game:GetService("RunService").Heartbeat:Connect(function()
+                local lp = game.Players.LocalPlayer
+                local char = lp.Character
+                if char and char:FindFirstChild("HumanoidRootPart") then
+                    local hum = char:FindFirstChildOfClass("Humanoid")
+                    if hum and hum.MoveDirection.Magnitude > 0 then
+                        char:TranslateBy(hum.MoveDirection * (tpWalkSpeed/50))
+                    end
+                end
+            end)
+        end
+    end
+})
+
+tpWalkSection:Slider({
+    Title = "TP Walk Speed",
+    Value = { Min = 1, Max = 150, Default = 50 },
+    Callback = function(value)
+        tpWalkSpeed = value
+    end
+})
+
+-- ================= TELEPORT TO PLAYER ==================
+local tpPlayerSection = TeleportTab:Section({
+    Title = "Teleport to Player",
+    Icon = "user"
+})
+
+local selectedPlayer = nil
+local tpDropdown
+
+local function refreshTPDropdown()
+    local names = {}
+    for _, plr in ipairs(game:GetService("Players"):GetPlayers()) do
+        if plr ~= game.Players.LocalPlayer then
+            table.insert(names, plr.Name)
+        end
+    end
+
+    if tpDropdown then tpDropdown:Destroy() end
+    tpDropdown = tpPlayerSection:Dropdown({
+        Title = "Select Player",
+        Values = names,
+        Multi = false,
+        Callback = function(value)
+            selectedPlayer = game:GetService("Players"):FindFirstChild(value)
+            if selectedPlayer and selectedPlayer.Character and selectedPlayer.Character:FindFirstChild("HumanoidRootPart") then
+                local lp = game.Players.LocalPlayer
+                if lp.Character and lp.Character:FindFirstChild("HumanoidRootPart") then
+                    lp.Character.HumanoidRootPart.CFrame =
+                        selectedPlayer.Character.HumanoidRootPart.CFrame + Vector3.new(0,3,0)
+                end
+            end
+        end
+    })
+end
+
+tpPlayerSection:Button({
+    Title = "Refresh Players",
+    Callback = refreshTPDropdown
+})
+
+refreshTPDropdown()
+
+-- ================= HEADSIT ==================
+local headSitSection = TeleportTab:Section({
+    Title = "HeadSit",
+    Icon = "smile"
+})
+
+local headSitToggle = false
+local headSitConn
+local headSitTarget
+local headSitDropdown
+
+headSitSection:Toggle({
+    Title = "Enable HeadSit",
+    Value = false,
+    Callback = function(state)
+        headSitToggle = state
+        if headSitConn then headSitConn:Disconnect() end
+
+        if state and headSitTarget then
+            local hum = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+            if hum then hum.Sit = true end
+
+            headSitConn = game:GetService("RunService").Heartbeat:Connect(function()
+                if headSitToggle and headSitTarget.Character and headSitTarget.Character:FindFirstChild("Head") then
+                    local lpChar = game.Players.LocalPlayer.Character
+                    if lpChar and lpChar:FindFirstChild("HumanoidRootPart") then
+                        lpChar.HumanoidRootPart.CFrame =
+                            headSitTarget.Character.Head.CFrame * CFrame.new(0, 1.6, 0.4)
+                    end
+                end
+            end)
+        end
+    end
+})
+
+local function refreshHeadSitDropdown()
+    local names = {}
+    for _, plr in ipairs(game:GetService("Players"):GetPlayers()) do
+        if plr ~= game.Players.LocalPlayer then
+            table.insert(names, plr.Name)
+        end
+    end
+
+    if headSitDropdown then headSitDropdown:Destroy() end
+    headSitDropdown = headSitSection:Dropdown({
+        Title = "Select Player",
+        Values = names,
+        Multi = false,
+        Callback = function(value)
+            headSitTarget = game:GetService("Players"):FindFirstChild(value)
+            if headSitToggle and headSitTarget then
+                local hum = game.Players.LocalPlayer.Character and game.Players.LocalPlayer.Character:FindFirstChildOfClass("Humanoid")
+                if hum then hum.Sit = true end
+            end
+        end
+    })
+end
+
+headSitSection:Button({
+    Title = "Refresh Players",
+    Callback = refreshHeadSitDropdown
+})
+
+refreshHeadSitDropdown()
+
+-- ========== FOLLOW TAB ==========
+local FollowTab = Window:Tab({
+    Title = "Follow Service",
+    Icon = "compass",
+    Opened = false
+})
+
+local playersService = game:GetService("Players")
+local localPlayer = playersService.LocalPlayer
+local tweenService = game:GetService("TweenService")
+local runService = game:GetService("RunService")
+
+-- ================= TWEEN FOLLOW ==================
+local tweenSection = FollowTab:Section({
+    Title = "Tween Follow",
+    Icon = "shuffle"
+})
+
+local tweenFollowEnabled = false
+local tweenFollowTarget
+local tweenDropdown
+
+tweenSection:Toggle({
+    Title = "Enable Tween Follow",
+    Value = false,
+    Callback = function(state)
+        tweenFollowEnabled = state
+    end
+})
+
+local function refreshTweenDropdown()
+    local names = {}
+    for _, plr in ipairs(playersService:GetPlayers()) do
+        if plr ~= localPlayer then
+            table.insert(names, plr.Name)
+        end
+    end
+
+    if tweenDropdown then tweenDropdown:Destroy() end
+    tweenDropdown = tweenSection:Dropdown({
+        Title = "Select Player",
+        Values = names,
+        Callback = function(value)
+            tweenFollowTarget = playersService:FindFirstChild(value)
+        end
+    })
+end
+
+tweenSection:Button({
+    Title = "Refresh Players",
+    Callback = refreshTweenDropdown
+})
+
+refreshTweenDropdown()
+
+-- ================= TP FOLLOW ==================
+local tpSection = FollowTab:Section({
+    Title = "Teleport Follow",
+    Icon = "move"
+})
+
+local tpFollowEnabled = false
+local tpFollowTarget
+local tpDropdown
+
+tpSection:Toggle({
+    Title = "Enable TP Follow",
+    Value = false,
+    Callback = function(state)
+        tpFollowEnabled = state
+    end
+})
+
+local function refreshTPDropdown()
+    local names = {}
+    for _, plr in ipairs(playersService:GetPlayers()) do
+        if plr ~= localPlayer then
+            table.insert(names, plr.Name)
+        end
+    end
+
+    if tpDropdown then tpDropdown:Destroy() end
+    tpDropdown = tpSection:Dropdown({
+        Title = "Select Player",
+        Values = names,
+        Callback = function(value)
+            tpFollowTarget = playersService:FindFirstChild(value)
+        end
+    })
+end
+
+tpSection:Button({
+    Title = "Refresh Players",
+    Callback = refreshTPDropdown
+})
+
+refreshTPDropdown()
+
+-- ================= BACKGROUND LOOP ==================
+runService.Heartbeat:Connect(function()
+    local char = localPlayer.Character
+    if not char or not char:FindFirstChild("HumanoidRootPart") then return end
+    local myRoot = char.HumanoidRootPart
+
+    -- Tween Follow
+    if tweenFollowEnabled and tweenFollowTarget and tweenFollowTarget.Character then
+        local targetRoot = tweenFollowTarget.Character:FindFirstChild("HumanoidRootPart")
+        if targetRoot then
+            local goal = { CFrame = targetRoot.CFrame * CFrame.new(0, 0, 3) }
+            local tween = tweenService:Create(myRoot, TweenInfo.new(0.2, Enum.EasingStyle.Linear), goal)
+            tween:Play()
+        end
+    end
+
+    -- TP Follow
+    if tpFollowEnabled and tpFollowTarget and tpFollowTarget.Character then
+        local targetRoot = tpFollowTarget.Character:FindFirstChild("HumanoidRootPart")
+        if targetRoot then
+            myRoot.CFrame = targetRoot.CFrame * CFrame.new(0, 0, 3)
+        end
+    end
+end)
+
+-- ========== WAYPOINTS TAB ==========
+local HttpService = game:GetService("HttpService")
+local PlaceId = game.PlaceId
+local waypointFile = "SolzHub/Waypoints/" .. PlaceId .. ".json"
+
+-- Ensure folder exists
+if not isfolder("SolzHub") then makefolder("SolzHub") end
+if not isfolder("SolzHub/Waypoints") then makefolder("SolzHub/Waypoints") end
+
+-- Load saved waypoints
+local waypoints = {}
+if isfile(waypointFile) then
+    local success, data = pcall(function()
+        return HttpService:JSONDecode(readfile(waypointFile))
+    end)
+    if success and type(data) == "table" then
+        waypoints = data
+    end
+end
+
+local function saveWaypoints()
+    writefile(waypointFile, HttpService:JSONEncode(waypoints))
+end
+
+-- Tab
+local WaypointsTab = Window:Tab({
+    Title = "Waypoints",
+    Icon = "map",
+    Opened = false
+})
+
+local waypointDropdown
+local selectedWaypoint = nil
+
+-- Refresh dropdown
+local function refreshWaypointDropdown()
+    local names = {}
+    for name, _ in pairs(waypoints) do
+        table.insert(names, name)
+    end
+
+    if waypointDropdown then waypointDropdown:Destroy() end
+    waypointDropdown = WaypointsTab:Dropdown({
+        Title = "Saved Waypoints",
+        Values = names,
+        Callback = function(value)
+            selectedWaypoint = value
+        end
+    })
+end
+
+-- ================= CREATE / SAVE ==================
+local saveSection = WaypointsTab:Section({
+    Title = "Create Waypoint",
+    Icon = "save"
+})
+
+saveSection:Button({
+    Title = "Save Current Position",
+    Callback = function()
+        local char = game.Players.LocalPlayer.Character
+        if char and char:FindFirstChild("HumanoidRootPart") then
+            -- Auto-generate unique name
+            local count = 1
+            local name = "Waypoint " .. count
+            while waypoints[name] do
+                count += 1
+                name = "Waypoint " .. count
+            end
+
+            local pos = char.HumanoidRootPart.CFrame
+            waypoints[name] = { X = pos.X, Y = pos.Y, Z = pos.Z }
+            saveWaypoints()
+            refreshWaypointDropdown()
+            selectedWaypoint = name
+        end
+    end
+})
+
+-- ================= TELEPORT ==================
+local teleportSection = WaypointsTab:Section({
+    Title = "Teleport",
+    Icon = "map-pin"
+})
+
+teleportSection:Button({
+    Title = "Teleport to Selected",
+    Callback = function()
+        if selectedWaypoint and waypoints[selectedWaypoint] then
+            local pos = waypoints[selectedWaypoint]
+            local char = game.Players.LocalPlayer.Character
+            if char and char:FindFirstChild("HumanoidRootPart") then
+                char.HumanoidRootPart.CFrame = CFrame.new(pos.X, pos.Y, pos.Z)
+            end
+        end
+    end
+})
+
+-- ================= DELETE ==================
+local deleteSection = WaypointsTab:Section({
+    Title = "Delete",
+    Icon = "trash"
+})
+
+deleteSection:Button({
+    Title = "Delete Selected Waypoint",
+    Callback = function()
+        if selectedWaypoint and waypoints[selectedWaypoint] then
+            waypoints[selectedWaypoint] = nil
+            selectedWaypoint = nil
+            saveWaypoints()
+            refreshWaypointDropdown()
+        end
+    end
+})
+
+-- Initial load
+refreshWaypointDropdown()
+
+-- ========== ESP TAB ==========
+local EspTab = Window:Tab({
+    Title = "ESP Service",
+    Icon = "eye",
+    Opened = false
+})
+
+local playersService = game:GetService("Players")
+local localPlayer = playersService.LocalPlayer
+
+-- =============================================
+-- ESP UTILS
+-- =============================================
+local function createBillboardBox(char)
+    local head = char:FindFirstChild("Head")
+    if not head then return end
+
+    local bb = Instance.new("BillboardGui")
+    bb.Adornee = head
+    bb.Size = UDim2.new(4,0,5,0)
+    bb.AlwaysOnTop = true
+
+    local frame = Instance.new("Frame", bb)
+    frame.Size = UDim2.new(1,0,1,0)
+    frame.BackgroundTransparency = 0.7
+    frame.BorderSizePixel = 2
+    frame.BorderColor3 = Color3.fromRGB(0,255,0)
+
+    bb.Parent = head
+  
